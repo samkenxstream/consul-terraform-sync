@@ -171,8 +171,22 @@ event "promote-staging" {
   }
 }
 
-event "promote-staging-docker" {
+event "promote-staging-new-hc-releases" {
   depends = ["promote-staging"]
+  action "promote-staging-new-hc-releases" {
+    organization = "hashicorp"
+    repository = "crt-workflows-common"
+    workflow = "promote-staging-new-hc-releases"
+	config = "release-metadata.hcl"
+  }
+
+  notification {
+    on = "fail"
+  }
+}
+
+event "promote-staging-docker" {
+  depends = ["promote-staging-new-hc-releases"]
   action "promote-staging-docker" {
     organization = "hashicorp"
     repository = "crt-workflows-common"
