@@ -21,6 +21,15 @@ jobs:
     executor:
       name: go
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - restore_cache:
           keys:
@@ -50,6 +59,15 @@ jobs:
     executor:
       name: go
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - restore_cache:
           keys:
@@ -73,6 +91,15 @@ jobs:
       name: go
     resource_class: medium+
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - restore_cache:
           keys:
@@ -102,6 +129,15 @@ jobs:
     executor:
       name: go
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - restore_cache:
           keys:
@@ -125,6 +161,15 @@ jobs:
         description: the job times out after this duration with no output
         default: 30m
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - run:
           name: Install Consul
@@ -173,6 +218,15 @@ jobs:
     executor:
       name: go
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - restore_cache:
           keys:
@@ -200,6 +254,15 @@ jobs:
     executor:
       name: go
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - run: make go-fmt-check
       - run:
@@ -214,6 +277,15 @@ jobs:
     executor:
       name: go
     steps:
+      - run:
+          name: Install OpenSSH 8.9p1
+          command: |
+            sudo apt-get update
+            mkdir ~/tmp_open_ssh;
+            cd ~/tmp_open_ssh;
+            wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-8.9p1.tar.gz;
+            tar zxvf openssh-8.9p1.tar.gz;
+            cd openssh-8.9p1 && ./configure && make && sudo make install
       - checkout
       - run:
           name: Install Terraform
