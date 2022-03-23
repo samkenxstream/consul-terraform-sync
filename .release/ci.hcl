@@ -157,7 +157,7 @@ event "trigger-staging" {
 }
 
 event "promote-staging-new-hc-releases" {
-  depends = ["promote-staging"]
+  depends = ["trigger-staging"]
   action "promote-staging-new-hc-releases" {
     organization = "hashicorp"
     repository = "crt-workflows-common"
