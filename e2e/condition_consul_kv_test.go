@@ -10,7 +10,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-terraform-sync/api"
+	"github.com/hashicorp/consul-terraform-sync/command"
 	"github.com/hashicorp/consul-terraform-sync/testutils"
+	"github.com/hashicorp/consul/sdk/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -405,5 +408,123 @@ func TestConditionConsulKV_InvalidQueries(t *testing.T) {
 		taskName := "condition_consul_kv_invalid_" + tc.name
 		taskConfig := fmt.Sprintf(config, taskName, tc.queryConfig)
 		testInvalidTaskConfig(t, tc.name, taskName, taskConfig, tc.errMsg)
+	}
+}
+
+// TestConditionConsulKV_SuppressTriggers_SharedDependencies tests that a
+// task created with a consul-kv condition that shares a dependencies with
+//  an existing task only triggers on a Consul KV change.
+//
+// https://github.com/hashicorp/consul-terraform-sync/issues/704
+func TestConditionConsulKV_SuppressTriggers_SharedDependencies(t *testing.T) {
+	setParallelism(t)
+
+	testcases := []struct {
+		name    string
+		recurse bool
+	}{
+		{
+			"single_key",
+			false,
+		},
+		{
+			"recurse",
+			true,
+		},
+	}
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			setParallelism(t)
+			// Set up Consul server with no services or KV pairs
+			srv := testutils.NewTestConsulServer(t, testutils.TestConsulServerConfig{
+				HTTPSRelPath: "../testutils",
+			})
+			defer srv.Stop()
+
+			// Configure and start CTS with an existing task
+			taskName := "consul_kv_condition_cli_shared_dep_" + tc.name
+			tempDir := fmt.Sprintf("%s%s", tempDirPrefix, taskName)
+			initTaskName := "initial_task"
+			sharedService := "web"
+			initConfig := fmt.Sprintf(`
+			task {
+				name = "%s"
+				module = "./test_modules/local_instances_file"
+				condition "services" {
+					names = ["%s"]
+					use_as_module_input = true
+				}
+			}
+			`, initTaskName, sharedService)
+			cts := ctsSetup(t, srv, tempDir, initConfig)
+
+			// Create a task via the CLI that has a consul-kv condition and
+			// shares a dependency with the existing task (web service)
+			path := "test-key"
+			config := fmt.Sprintf(`task {
+				name = "%s"
+				module = "lornasong/cts_kv_file/local"
+				condition "consul-kv" {
+					path = "%s"
+					recurse = %t
+					use_as_module_input = true
+				}
+				module_input "services" {
+					names = ["%s"]
+				}
+			}`, taskName, path, tc.recurse, sharedService)
+
+			var taskConfig hclConfig
+			taskConfig = taskConfig.appendString(config)
+			taskFilePath := filepath.Join(tempDir, "task.hcl")
+			taskConfig.write(t, taskFilePath)
+
+			subcmd := []string{"task", "create",
+				fmt.Sprintf("-%s=%s", command.FlagHTTPAddr, cts.FullAddress()),
+				fmt.Sprintf("-task-file=%s", taskFilePath),
+			}
+			out, err := runSubcommand(t, "yes\n", subcmd...)
+			require.NoError(t, err, fmt.Sprintf("command '%s' failed:\n %s", subcmd, out))
+			require.Contains(t, out, fmt.Sprintf("Task '%s' created", taskName))
+
+			// Confirm one event at creation, no services or KV registered yet
+			count := eventCount(t, taskName, cts.Port())
+			expectedCount := 1
+			require.Equal(t, expectedCount, count)
+			workingDir := fmt.Sprintf("%s/%s", tempDir, taskName)
+			resourcesPath := filepath.Join(workingDir, resourcesDir)
+			validateServices(t, false, []string{"api", "web"}, resourcesPath)
+
+			// Make a change to the shared dependency
+			now := time.Now()
+			service := testutil.TestService{ID: sharedService, Name: sharedService}
+			testutils.RegisterConsulService(t, srv, service, defaultWaitForRegistration)
+			time.Sleep(defaultWaitForNoEvent)
+
+			// Confirm that created task was not triggered, once-mode should
+			// be complete
+			count = eventCount(t, taskName, cts.Port())
+			assert.Equal(t, expectedCount, count)
+			validateServices(t, false, []string{sharedService}, resourcesPath)
+
+			// Check that the initial task triggered as expected
+			api.WaitForEvent(t, cts, initTaskName, now, defaultWaitForEvent)
+			initCount := eventCount(t, initTaskName, cts.Port())
+			assert.Equal(t, 2, initCount)
+			initResources := filepath.Join(tempDir, initTaskName, resourcesDir)
+			validateServices(t, true, []string{sharedService}, initResources)
+
+			// Make a Consul KV change, confirm that task runs
+			now = time.Now()
+			value := "test-value"
+			srv.SetKVString(t, path, value)
+			api.WaitForEvent(t, cts, taskName, now, defaultWaitForEvent)
+			count = eventCount(t, taskName, cts.Port())
+			expectedCount++
+			assert.Equal(t, expectedCount, count, "unexpected event count")
+			validateModuleFile(t, true, true, resourcesPath, path, value)
+			validateServices(t, true, []string{"web"}, resourcesPath)
+		})
 	}
 }

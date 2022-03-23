@@ -33,7 +33,7 @@ require (
 	github.com/hashicorp/go-syslog v1.0.0
 	github.com/hashicorp/go-uuid v1.0.2
 	github.com/hashicorp/go-version v1.3.0
-	github.com/hashicorp/hcat v0.2.1-0.20220203193115-e49c6b7ee2f9
+	github.com/hashicorp/hcat v0.2.1-0.20220301192914-b8acc0524d4e
 	github.com/hashicorp/hcl v1.0.1-vault-2
 	github.com/hashicorp/hcl/v2 v2.8.2
 	github.com/hashicorp/logutils v1.0.0
@@ -52,6 +52,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1
+	github.com/posener/complete v1.2.3
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/ulikunitz/xz v0.5.10 // indirect

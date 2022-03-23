@@ -106,6 +106,7 @@ func TestServer_TaskCreate(t *testing.T) {
 
 		mockD := new(mocksD.Driver)
 		mockD.On("SetBufferPeriod").Return()
+		mockD.On("OverrideNotifier").Return()
 		mockDriver(ctx, mockD, driverTask)
 		ctrl.newDriver = func(*config.Config, *driver.Task, templates.Watcher) (driver.Driver, error) {
 			return mockD, nil
@@ -162,6 +163,7 @@ func TestServer_TaskCreateAndRun(t *testing.T) {
 			conf: &config.Config{
 				BufferPeriod: config.DefaultBufferPeriodConfig(),
 				WorkingDir:   config.String(config.DefaultWorkingDir),
+				Driver:       config.DefaultDriverConfig(),
 			},
 			logger:  logging.NewNullLogger(),
 			watcher: new(mocksTmpl.Watcher),
@@ -171,6 +173,7 @@ func TestServer_TaskCreateAndRun(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockD := new(mocksD.Driver)
 		mockD.On("SetBufferPeriod").Return()
+		mockD.On("OverrideNotifier").Return()
 		task, err := driver.NewTask(driver.TaskConfig{
 			Enabled: true,
 			Name:    "task",
@@ -198,6 +201,7 @@ func TestServer_TaskCreateAndRun(t *testing.T) {
 	t.Run("disabled task", func(t *testing.T) {
 		mockD := new(mocksD.Driver)
 		mockD.On("SetBufferPeriod").Return()
+		mockD.On("OverrideNotifier").Return()
 		task, err := driver.NewTask(driver.TaskConfig{
 			Enabled: false,
 			Name:    "task",
@@ -232,6 +236,7 @@ func TestServer_TaskCreateAndRun(t *testing.T) {
 		require.NoError(t, err)
 		mockD.On("Task").Return(task).
 			On("InitTask", ctx).Return(nil).
+			On("OverrideNotifier").Return().
 			On("RenderTemplate", mock.Anything).Return(true, nil).
 			On("ApplyTask", ctx).Return(fmt.Errorf("apply err"))
 		ctrl.store = event.NewStore()
