@@ -46,33 +46,39 @@ func TestWithRetry(t *testing.T) {
 
 	cases := []struct {
 		name      string
-		retry     uint
+		maxRetry  int
 		successOn int
 		expected  error
 	}{
 		{
-			"happy path: retry once, success on retry (2)",
+			"happy path: retry once, success on retry (1)",
+			2, // max retries is 2, but will succeed on first retry
 			1,
-			2,
+			nil,
+		},
+		{
+			"happy path: infinite retries, success on retry (3)",
+			-1, // max retries is 2, but will succeed on first retry
+			3,
 			nil,
 		},
 		{
 			"no success on retries: retry once",
 			1,
 			100,
-			errors.New("retry attempt #1 failed 'error on 2'"),
+			errors.New("retry attempt #1 failed 'error on 1'"),
 		},
 		{
-			"happy path: no retry",
+			"happy path: no retries",
 			0,
-			1,
+			0,
 			nil,
 		},
 		{
-			"no retry, no success",
+			"no retries, no success",
 			0,
 			100,
-			errors.New("error on 1"),
+			errors.New("error on 0"),
 		},
 	}
 
@@ -82,14 +88,57 @@ func TestWithRetry(t *testing.T) {
 			// set up fake function
 			count := 0
 			fxn := func(context.Context) error {
-				count++
 				if count == tc.successOn {
 					return nil
 				}
-				return fmt.Errorf("error on %d", count)
+				err := fmt.Errorf("error on %d", count)
+				count++
+				return err
 			}
 
-			r := NewRetry(tc.retry, 1)
+			r := NewTestRetry(tc.maxRetry)
+			err := r.Do(ctx, fxn, "test fxn")
+			if tc.expected == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, tc.expected.Error(), err.Error())
+			}
+		})
+	}
+}
+
+func TestWithRetry_WithDelay(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		maxRetry  int
+		successOn int
+		expected  error
+	}{
+		{
+			"happy path: retry once, with proper delay",
+			2, // max retries is 2, but will succeed on first retry
+			1,
+			nil,
+		},
+	}
+
+	ctx := context.Background()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// set up fake function
+			count := 0
+			fxn := func(context.Context) error {
+				if count == tc.successOn {
+					return nil
+				}
+				err := fmt.Errorf("error on %d", count)
+				count++
+				return err
+			}
+
+			r := NewRetry(tc.maxRetry, 1)
 			err := r.Do(ctx, fxn, "test fxn")
 			if tc.expected == nil {
 				assert.NoError(t, err)
@@ -161,6 +210,18 @@ func TestWaitTime(t *testing.T) {
 			2,
 			4,
 			6,
+		},
+		{
+			"max attempt minimum",
+			10,
+			900,
+			900,
+		},
+		{
+			"max attempt high value",
+			1000,
+			900,
+			900,
 		},
 	}
 
