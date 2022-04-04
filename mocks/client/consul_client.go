@@ -36,15 +36,15 @@ func (_m *ConsulClientInterface) GetLicense(ctx context.Context, q *api.QueryOpt
 	return r0, r1
 }
 
-// GetSKU provides a mock function with given fields: ctx
-func (_m *ConsulClientInterface) GetSKU(ctx context.Context) (string, error) {
+// IsEnterprise provides a mock function with given fields: ctx
+func (_m *ConsulClientInterface) IsEnterprise(ctx context.Context) (bool, error) {
 	ret := _m.Called(ctx)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context) bool); ok {
 		r0 = rf(ctx)
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
