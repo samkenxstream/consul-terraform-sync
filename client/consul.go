@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -15,10 +16,9 @@ import (
 )
 
 const (
-	ConsulEnterpriseSKU   = "ent"
-	ConsulOSSSKU          = "oss"
-	ConsulDefaultMaxRetry = 8 // to be consistent with hcat retries
-	consulSubsystemName   = "consul"
+	ConsulEnterpriseSignifier = "ent"
+	ConsulDefaultMaxRetry     = 8 // to be consistent with hcat retries
+	consulSubsystemName       = "consul"
 )
 
 //go:generate mockery --name=ConsulClientInterface --filename=consul_client.go --output=../mocks/client --tags=enterprise
@@ -34,7 +34,7 @@ var _ ConsulClientInterface = (*ConsulClient)(nil)
 // - Easily mocked
 type ConsulClientInterface interface {
 	GetLicense(ctx context.Context, q *consulapi.QueryOptions) (string, error)
-	GetSKU(ctx context.Context) (string, error)
+	IsEnterprise(ctx context.Context) (bool, error)
 }
 
 // ConsulClient is a client to the Consul API
@@ -44,10 +44,11 @@ type ConsulClient struct {
 	logger logging.Logger
 }
 
-// Self represents the response body from Consul /v1/agent/self API endpoint.
+// ConsulAgentConfig represents the response body from Consul /v1/agent/self API endpoint.
+// The response contains configuration and member information of the requested agent.
 // Care must always be taken to do type checks when casting, as structure could
 // potentially change over time.
-type Self = map[string]map[string]interface{}
+type ConsulAgentConfig = map[string]map[string]interface{}
 
 // NewConsulClient constructs a consul api client
 func NewConsulClient(conf *config.Config, maxRetry int) (*ConsulClient, error) {
@@ -87,10 +88,11 @@ func NewConsulClient(conf *config.Config, maxRetry int) (*ConsulClient, error) {
 	logger := logging.Global().Named(loggingSystemName).Named(consulSubsystemName)
 
 	r := retry.NewRetry(maxRetry, time.Now().UnixNano())
-	return &ConsulClient{
+	c := &ConsulClient{
 		Client: clients.Consul(),
 		retry:  r,
-		logger: logger}, nil
+		logger: logger}
+	return c, nil
 }
 
 // GetLicense queries Consul for a signed license, and returns it if available
@@ -101,59 +103,68 @@ func (c *ConsulClient) GetLicense(ctx context.Context, q *consulapi.QueryOptions
 	var err error
 	var license string
 
-	err = c.retry.Do(ctx, func(context.Context) error {
+	f := func(context.Context) error {
 		license, err = c.Operator().LicenseGetSigned(q)
 		if err != nil {
 			license = ""
 			return err
 		}
 		return nil
-	}, desc)
+	}
+
+	err = c.retry.Do(ctx, f, desc)
 
 	return license, err
 }
 
-// GetSKU queries Consul for information about itself, it then
+// IsEnterprise queries Consul for information about itself, it then
 // parses this information to determine whether the Consul being
-// queried is Enterprise or OSS
-func (c *ConsulClient) GetSKU(ctx context.Context) (string, error) {
+// queried is Enterprise or OSS. Returns true if Consul is Enterprise.
+func (c *ConsulClient) IsEnterprise(ctx context.Context) (bool, error) {
 	c.logger.Debug("getting sku")
 
 	desc := "consul client get sku"
 	var err error
-	var info Self
+	var info ConsulAgentConfig
 
-	err = c.retry.Do(ctx, func(context.Context) error {
+	f := func(context.Context) error {
 		info, err = c.Agent().Self()
 		if err != nil {
 			info = nil
 			return err
 		}
 		return nil
-	}, desc)
-	if err != nil {
-		return "", err
 	}
 
-	sku, ok := parseSKU(info)
-	if !ok {
-		return "", errors.New("unable to parse sku")
+	err = c.retry.Do(ctx, f, desc)
+	if err != nil {
+		return false, err
 	}
-	return sku, nil
+
+	ctx = logging.WithContext(ctx, c.logger)
+
+	isEnterprise, err := isConsulEnterprise(ctx, info)
+	if err != nil {
+		return false, fmt.Errorf("unable to parse sku: %v", err)
+	}
+	return isEnterprise, nil
 }
 
-func parseSKU(info Self) (string, bool) {
+func isConsulEnterprise(ctx context.Context, info ConsulAgentConfig) (bool, error) {
+	logger := logging.FromContext(ctx)
 	v, ok := info["Config"]["Version"].(string)
 	if !ok {
-		return "", ok
+		logger.Debug("expected keys map[Config][Version] to exist", "ConsulAgentConfig", info)
+		return false, errors.New("unable to parse map[Config][Version], keys do not exist")
 	}
 
-	ver, vErr := version.NewVersion(v)
-	if vErr != nil {
-		return "", false
+	ver, err := version.NewVersion(v)
+	if err != nil {
+		return false, err
 	}
-	if strings.Contains(ver.Metadata(), ConsulEnterpriseSKU) {
-		return ConsulEnterpriseSKU, true
+
+	if strings.Contains(ver.Metadata(), ConsulEnterpriseSignifier) {
+		return true, nil
 	}
-	return ConsulOSSSKU, true
+	return false, nil
 }
