@@ -51,14 +51,14 @@ func TestWithRetry(t *testing.T) {
 		expected  error
 	}{
 		{
-			"happy path: retry once, success on retry (1)",
+			"happy path: try twice, success on retry (1)",
 			2, // max retries is 2, but will succeed on first retry
 			1,
 			nil,
 		},
 		{
 			"happy path: infinite retries, success on retry (3)",
-			-1, // max retries is 2, but will succeed on first retry
+			-1, // max retries is infinite, but will succeed on retry 3
 			3,
 			nil,
 		},
@@ -97,48 +97,6 @@ func TestWithRetry(t *testing.T) {
 			}
 
 			r := NewTestRetry(tc.maxRetry)
-			err := r.Do(ctx, fxn, "test fxn")
-			if tc.expected == nil {
-				assert.NoError(t, err)
-			} else {
-				assert.Equal(t, tc.expected.Error(), err.Error())
-			}
-		})
-	}
-}
-
-func TestWithRetry_WithDelay(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name      string
-		maxRetry  int
-		successOn int
-		expected  error
-	}{
-		{
-			"happy path: retry once, with proper delay",
-			2, // max retries is 2, but will succeed on first retry
-			1,
-			nil,
-		},
-	}
-
-	ctx := context.Background()
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// set up fake function
-			count := 0
-			fxn := func(context.Context) error {
-				if count == tc.successOn {
-					return nil
-				}
-				err := fmt.Errorf("error on %d", count)
-				count++
-				return err
-			}
-
-			r := NewRetry(tc.maxRetry, 1)
 			err := r.Do(ctx, fxn, "test fxn")
 			if tc.expected == nil {
 				assert.NoError(t, err)
@@ -189,7 +147,7 @@ func TestWaitTime(t *testing.T) {
 
 	cases := []struct {
 		name      string
-		attempt   uint
+		attempt   int
 		minReturn float64
 		maxReturn float64
 	}{
@@ -214,21 +172,21 @@ func TestWaitTime(t *testing.T) {
 		{
 			"max attempt minimum",
 			10,
-			900,
-			900,
+			maxWaitTimeInNs / float64(time.Second),
+			maxWaitTimeInNs / float64(time.Second),
 		},
 		{
 			"max attempt high value",
 			1000,
-			900,
-			900,
+			maxWaitTimeInNs / float64(time.Second),
+			maxWaitTimeInNs / float64(time.Second),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			random := rand.New(rand.NewSource(time.Now().UnixNano()))
-			a := WaitTime(tc.attempt, random)
+			a := WaitTimeInNs(tc.attempt, random)
 
 			actual := float64(a) / float64(time.Second)
 			assert.GreaterOrEqual(t, actual, tc.minReturn)

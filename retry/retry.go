@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	taskSystemName = "task"
-	maxWaitTime    = 15 * float64(time.Minute) // 15 minutes
+	taskSystemName  = "task"
+	maxWaitTimeInNs = 15 * float64(time.Minute) // 15 minutes
 )
 
 // Retry handles executing and retrying a function
@@ -24,7 +24,7 @@ type Retry struct {
 	logger   logging.Logger
 }
 
-// NewRetry initializes a maxRetry handler
+// NewRetry initializes a retry handler
 // maxRetry is *retries*, so maxRetry of 2 means 3 total tries.
 // -1 retries means indefinite retries
 func NewRetry(maxRetry int, seed int64) Retry {
@@ -35,7 +35,7 @@ func NewRetry(maxRetry int, seed int64) Retry {
 	}
 }
 
-// Do calls a function with exponential maxRetry with a random delay.
+// Do calls a function with exponential retries with a random delay.
 func (r Retry) Do(ctx context.Context, f func(context.Context) error, desc string) error {
 	var errs error
 
@@ -44,15 +44,15 @@ func (r Retry) Do(ctx context.Context, f func(context.Context) error, desc strin
 		return err
 	}
 
-	var attempt uint
-	wait := r.waitTime(attempt)
+	var attempt int
+	wait := r.waitTimeInNs(attempt)
 	interval := time.NewTicker(time.Duration(wait))
 	defer interval.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			r.logger.Info("stopping maxRetry", "description", desc)
+			r.logger.Info("stopping retry", "description", desc)
 			return ctx.Err()
 		case <-interval.C:
 			attempt++
@@ -72,26 +72,26 @@ func (r Retry) Do(ctx context.Context, f func(context.Context) error, desc strin
 				errs = errors.Wrap(errs, err.Error())
 			}
 
-			wait := r.waitTime(attempt)
+			wait := r.waitTimeInNs(attempt)
 			interval = time.NewTicker(time.Duration(wait))
 		}
 
-		if r.maxRetry >= 0 && int(attempt) >= r.maxRetry {
+		if r.maxRetry >= 0 && attempt >= r.maxRetry {
 			return errs
 		}
 	}
 }
 
-func (r Retry) waitTime(attempt uint) int {
+func (r Retry) waitTimeInNs(attempt int) int {
 	if r.testMode {
 		return 1
 	}
-	return WaitTime(attempt, r.random)
+	return WaitTimeInNs(attempt, r.random)
 }
 
-// WaitTime calculates the wait time in nanoseconds based off the attempt number based off
-// exponential backoff with a random delay. It caps at the constant maxWaitTime.
-func WaitTime(attempt uint, random *rand.Rand) int {
+// WaitTimeInNs calculates the wait time in nanoseconds based off the attempt number based off
+// exponential backoff with a random delay. It caps at the constant maxWaitTimeInNs.
+func WaitTimeInNs(attempt int, random *rand.Rand) int {
 	a := float64(attempt)
 	baseTimeSeconds := math.Exp2(a)
 	nextTimeSeconds := math.Exp2(a + 1)
@@ -99,14 +99,14 @@ func WaitTime(attempt uint, random *rand.Rand) int {
 	delay := random.Float64() * delayRange
 	total := (baseTimeSeconds + delay) * float64(time.Second)
 
-	if total > maxWaitTime {
-		return int(maxWaitTime)
+	if total > maxWaitTimeInNs {
+		return int(maxWaitTimeInNs)
 	}
 
 	return int(total)
 }
 
-// NewTestRetry is the test version, returns maxRetry in test mode (nanosecond maxRetry delay).
+// NewTestRetry is the test version, returns Retry in test mode (nanosecond retry delay).
 func NewTestRetry(maxRetry int) Retry {
 	r := NewRetry(maxRetry, 1)
 	r.testMode = true
