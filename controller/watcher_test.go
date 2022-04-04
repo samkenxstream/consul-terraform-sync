@@ -23,7 +23,7 @@ func TestWatchRetry_retryConsul(t *testing.T) {
 			breakLimit:      20,
 		},
 		{
-			name:            "happy path: retry 10x",
+			name:            "happy path: indefinite retry",
 			maxRetry:        -1,
 			breakLimit:      8,
 			expectedRetries: 8,
@@ -34,7 +34,7 @@ func TestWatchRetry_retryConsul(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			wr := watcherRetry{
 				maxRetries: tc.maxRetry,
-				waitFunc: func(attempt uint, random *rand.Rand) int {
+				waitFunc: func(attempt int, random *rand.Rand) int {
 					return 1
 				},
 			}
@@ -48,6 +48,8 @@ func TestWatchRetry_retryConsul(t *testing.T) {
 				count++
 			}
 
+			// count == number of tries
+			// retries are tries - 1, therefore check for count-1 retries
 			assert.Equal(t, tc.expectedRetries, count-1)
 		})
 	}
