@@ -148,38 +148,38 @@ func TestWaitTime(t *testing.T) {
 	cases := []struct {
 		name      string
 		attempt   int
-		minReturn float64
-		maxReturn float64
+		minReturn time.Duration
+		maxReturn time.Duration
 	}{
 		{
 			"first attempt",
 			0,
-			1,
-			1.5,
+			1 * time.Second,
+			time.Duration(1.5 * float64(time.Second)),
 		},
 		{
 			"second attempt",
 			1,
-			2,
-			3,
+			2 * time.Second,
+			3 * time.Second,
 		},
 		{
 			"third attempt",
 			2,
-			4,
-			6,
+			4 * time.Second,
+			6 * time.Second,
 		},
 		{
 			"max attempt minimum",
 			10,
-			maxWaitTimeInNs / float64(time.Second),
-			maxWaitTimeInNs / float64(time.Second),
+			maxWaitTimeInNs,
+			maxWaitTimeInNs,
 		},
 		{
 			"max attempt high value",
-			1000,
-			maxWaitTimeInNs / float64(time.Second),
-			maxWaitTimeInNs / float64(time.Second),
+			10000,
+			maxWaitTimeInNs,
+			maxWaitTimeInNs,
 		},
 	}
 
@@ -188,9 +188,8 @@ func TestWaitTime(t *testing.T) {
 			random := rand.New(rand.NewSource(time.Now().UnixNano()))
 			a := WaitTimeInNs(tc.attempt, random)
 
-			actual := float64(a) / float64(time.Second)
-			assert.GreaterOrEqual(t, actual, tc.minReturn)
-			assert.LessOrEqual(t, actual, tc.maxReturn)
+			assert.GreaterOrEqual(t, a, tc.minReturn)
+			assert.LessOrEqual(t, a, tc.maxReturn)
 		})
 	}
 }
