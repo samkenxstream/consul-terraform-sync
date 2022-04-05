@@ -121,9 +121,9 @@ func (c *ConsulClient) GetLicense(ctx context.Context, q *consulapi.QueryOptions
 // parses this information to determine whether the Consul being
 // queried is Enterprise or OSS. Returns true if Consul is Enterprise.
 func (c *ConsulClient) IsEnterprise(ctx context.Context) (bool, error) {
-	c.logger.Debug("getting sku")
+	c.logger.Debug("checking if connected to Consul Enterprise")
 
-	desc := "consul client get sku"
+	desc := "consul client get is enterprise"
 	var err error
 	var info ConsulAgentConfig
 
@@ -145,7 +145,7 @@ func (c *ConsulClient) IsEnterprise(ctx context.Context) (bool, error) {
 
 	isEnterprise, err := isConsulEnterprise(ctx, info)
 	if err != nil {
-		return false, fmt.Errorf("unable to parse sku: %v", err)
+		return false, fmt.Errorf("unable to parse if Consul is enterprise: %v", err)
 	}
 	return isEnterprise, nil
 }
