@@ -58,7 +58,7 @@ require (
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/zclconf/go-cty v1.9.1
 	go.opencensus.io v0.22.6 // indirect
-	golang.org/x/net v0.0.0-20210510120150-4163338589ed // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93 // indirect
 	google.golang.org/genproto v0.0.0-20210222212404-3e1e516060db // indirect
 )
